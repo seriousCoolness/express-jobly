@@ -5,12 +5,13 @@
 const jsonschema = require("jsonschema");
 const express = require("express");
 
-const { BadRequestError } = require("../expressError");
+const { BadRequestError, ExpressError } = require("../expressError");
 const { ensureLoggedIn } = require("../middleware/auth");
 const Company = require("../models/company");
 
 const companyNewSchema = require("../schemas/companyNew.json");
 const companyUpdateSchema = require("../schemas/companyUpdate.json");
+const db = require("../db");
 
 const router = new express.Router();
 
@@ -52,8 +53,46 @@ router.post("/", ensureLoggedIn, async function (req, res, next) {
 
 router.get("/", async function (req, res, next) {
   try {
-    const companies = await Company.findAll();
-    return res.json({ companies });
+    //get filters
+    const { nameLike, minEmployees, maxEmployees } = req.query;
+    
+    //set up base sql query
+    let sqlQuery = `SELECT * FROM companies`;
+    let sqlArgs = [];
+    if(minEmployees)
+    {
+      sqlArgs.push(minEmployees); //add filter's value for use in query call later
+
+      if(sqlArgs.length == 1) { sqlQuery += ` WHERE `; } //add a 'where' if this is the first
+      
+      sqlQuery += `num_employees > $${sqlArgs.length}`;
+    }
+    if(maxEmployees)
+    {
+      //error if max less than min
+      if(minEmployees > maxEmployees)
+      {
+        throw new ExpressError("Can't have min be greater than max!", 400);
+      }
+
+      sqlArgs.push(maxEmployees);
+
+      if(sqlArgs.length == 1) { sqlQuery += ` WHERE `; }
+      else if(sqlArgs.length >= 2) { sqlQuery += ` AND `; }
+
+      sqlQuery += `num_employees < $${sqlArgs.length}`;
+    }
+    if(nameLike)
+    {
+      sqlArgs.push(`%${nameLike}%`);
+
+      if(sqlArgs.length == 1) { sqlQuery += ` WHERE `; }
+      else if(sqlArgs.length >= 2) { sqlQuery += ` AND `; }
+
+      sqlQuery += `name ILIKE $${sqlArgs.length}`;
+    }
+    const companies = await db.query(sqlQuery, sqlArgs);
+    return res.json({ companies: companies.rows });
   } catch (err) {
     return next(err);
   }

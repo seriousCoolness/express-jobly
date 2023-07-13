@@ -68,32 +68,54 @@ describe("POST /companies", function () {
 describe("GET /companies", function () {
   test("ok for anon", async function () {
     const resp = await request(app).get("/companies");
+    console.log(resp.body);
     expect(resp.body).toEqual({
-      companies:
-          [
-            {
-              handle: "c1",
-              name: "C1",
-              description: "Desc1",
-              numEmployees: 1,
-              logoUrl: "http://c1.img",
-            },
-            {
-              handle: "c2",
-              name: "C2",
-              description: "Desc2",
-              numEmployees: 2,
-              logoUrl: "http://c2.img",
-            },
-            {
-              handle: "c3",
-              name: "C3",
-              description: "Desc3",
-              numEmployees: 3,
-              logoUrl: "http://c3.img",
-            },
-          ],
+      companies: [
+        {
+          handle: 'c1',
+          name: 'C1',
+          num_employees: 1,
+          description: 'Desc1',
+          logo_url: 'http://c1.img'
+        },
+        {
+          handle: 'c2',
+          name: 'C2',
+          num_employees: 2,
+          description: 'Desc2',
+          logo_url: 'http://c2.img'
+        },
+        {
+          handle: 'c3',
+          name: 'C3',
+          num_employees: 3,
+          description: 'Desc3',
+          logo_url: 'http://c3.img'
+        }
+      ]
     });
+  });
+  
+  test("works: query string filters", async function () {
+    const resp = await request(app).get('/companies/?minEmployees=2&maxEmployees=4&nameLike=c');
+    console.log(resp.body);
+    expect(resp.body).toEqual({
+      companies: [
+        {
+          handle: 'c3',
+          name: 'C3',
+          num_employees: 3,
+          description: 'Desc3',
+          logo_url: 'http://c3.img'
+        }
+      ]
+    });
+
+    const resp2 = await request(app).get("/companies/?minEmployees=800&maxEmployees=500");
+    expect(resp2.status).toEqual(400);
+
+    const resp3 = await request(app).get("/companies/?minEmployees=300&nameLike=is");
+    expect(resp3.body).toEqual({companies: [] });
   });
 
   test("fails: test next() handler", async function () {
