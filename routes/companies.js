@@ -8,6 +8,7 @@ const express = require("express");
 const { BadRequestError, ExpressError } = require("../expressError");
 const { ensureLoggedIn, ensureAdmin } = require("../middleware/auth");
 const Company = require("../models/company");
+const Job = require("../models/job");
 
 const companyNewSchema = require("../schemas/companyNew.json");
 const companyUpdateSchema = require("../schemas/companyUpdate.json");
@@ -109,7 +110,15 @@ router.get("/", async function (req, res, next) {
 router.get("/:handle", async function (req, res, next) {
   try {
     const company = await Company.get(req.params.handle);
-    return res.json({ company });
+    const jobsCompany = {
+      handle: company.handle,
+      name: company.name,
+      description: company.description,
+      numEmployees: company.numEmployees,
+      logoUrl: company.logoUrl,
+      jobs: await Job.findAllFor(company.handle)
+    }
+    return res.json({ company: jobsCompany });
   } catch (err) {
     return next(err);
   }
